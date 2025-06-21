@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>📱 Enhanced Mobile Status Dashboard</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    rel="stylesheet"
+  />
+  <style>
+    body.dark-mode {
+      background-color: #121212 !important;
+      color: #e0e0e0;
+    }
+    body.dark-mode .card {
+      background-color: #1e1e1e;
+      color: #ddd;
+    }
+    body.dark-mode .list-group-item {
+      background-color: #2a2a2a;
+      color: #ddd;
+    }
+    .progress {
+      height: 18px;
+    }
+    .status-label {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+    .small-text {
+      font-size: 0.9rem;
+      color: gray;
+    }
+    .toggle-switch {
+      cursor: pointer;
+    }
+    button {
+    font-size:0.8rem !important;
+   height:30px !important;
+    }
+  </style>
+</head>
+<body class="bg-light">
+
+<div class="container py-3">
+  <h3 class="text-center mb-4">📱 Enhanced Mobile Status Dashboard</h3>
+
+  <div class="mb-3 d-flex justify-content-center gap-2 flex-wrap">
+    <button class="btn btn-primary" onclick="triggerVibration()">
+      <i class="bi bi-bell-fill"></i> Vibrate
+    </button>
+    <button class="btn btn-success" onclick="playBeep()">
+      <i class="bi bi-volume-up-fill"></i> Test Sound
+    </button>
+    <button class="btn btn-dark" onclick="updateAll()">
+      <i class="bi bi-arrow-repeat"></i> Refresh
+    </button>
+    <button class="btn btn-warning" onclick="simulateFlightMode()">
+      <i class="bi bi-airplane-fill"></i> Flight Mode (Sim)
+    </button>
+    <button class="btn btn-secondary" onclick="toggleDarkMode()">
+      <i class="bi bi-moon-stars-fill"></i> Toggle Dark Mode
+    </button>
+  </div>
+
+  <div id="dashboard">
+
+    <!-- Connectivity Card -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-wifi"></i> Connectivity
+      </div>
+      <ul class="list-group list-group-flush" id="connectivityList"></ul>
+    </div>
+
+    <!-- Battery Card -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-battery-half"></i> Battery & Power
+      </div>
+      <ul class="list-group list-group-flush" id="batteryList"></ul>
+    </div>
+
+    <!-- Device Info Card -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-phone"></i> Device Info
+      </div>
+      <ul class="list-group list-group-flush" id="deviceInfoList"></ul>
+    </div>
+
+    <!-- Sensors Card -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-gear-wide-connected"></i> Sensors & Motion
+      </div>
+      <ul class="list-group list-group-flush" id="sensorList"></ul>
+    </div>
+
+    <!-- Storage Card -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-hdd-network-fill"></i> Storage
+      </div>
+      <ul class="list-group list-group-flush" id="storageList"></ul>
+    </div>
+
+    <!-- Location & Permissions Card -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header fw-bold">
+        <i class="bi bi-geo-alt-fill"></i> Location & Permissions
+      </div>
+      <ul class="list-group list-group-flush" id="locationList"></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  const connectivityList = document.getElementById("connectivityList");
+  const batteryList = document.getElementById("batteryList");
+  const deviceInfoList = document.getElementById("deviceInfoList");
+  const sensorList = document.getElementById("sensorList");
+  const storageList = document.getElementById("storageList");
+  const locationList = document.getElementById("locationList");
+
+  let battery = null;
+  let connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+
+  // Store references for updates
+  const items = {};
+
+  // Utility to create or update list item inside a specific list container
+  function createOrUpdateItem(container, key, label, value, isDanger = false, extraHTML = "") {
+    let parentList;
+    switch(container) {
+      case "connectivity": parentList = connectivityList; break;
+      case "battery": parentList = batteryList; break;
+      case "device": parentList = deviceInfoList; break;
+      case "sensor": parentList = sensorList; break;
+      case "storage": parentList = storageList; break;
+      case "location": parentList = locationList; break;
+      default: parentList = connectivityList;
+    }
+    const fullKey = container + "-" + key;
+
+    if (items[fullKey]) {
+      // update
+      const span = items[fullKey].querySelector("span");
+      span.textContent = value;
+      span.className = isDanger ? "text-danger fw-bold" : "";
+      if(extraHTML) items[fullKey].querySelector(".extra").innerHTML = extraHTML;
+      else if (items[fullKey].querySelector(".extra")) items[fullKey].querySelector(".extra").innerHTML = "";
+    } else {
+      // create
+      const li = document.createElement("li");
+      li.className = "list-group-item d-flex justify-content-between align-items-center";
+      li.innerHTML = `<div><strong>${label}</strong></div> <div><span class="${isDanger ? "text-danger fw-bold" : ""}">${value}</span> <span class="extra">${extraHTML}</span></div>`;
+      parentList.appendChild(li);
+      items[fullKey] = li;
+    }
+  }
+
+  // Vibration pattern explanation
+  function triggerVibration() {
+    if ("vibrate" in navigator) {
+      // Vibrate pattern: vibrate 300ms, pause 150ms, vibrate 300ms
+      if (!navigator.vibrate([300, 150, 300])) alert("Vibration not allowed or failed.");
+    } else {
+      alert("Vibration API not supported.");
+    }
+  }
+
+  // Simple beep sound
+  function playBeep() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  }
+
+  function simulateFlightMode() {
+    // Clear all
+    [connectivityList, batteryList, deviceInfoList, sensorList, storageList, locationList].forEach(list => list.innerHTML = "");
+    Object.keys(items).forEach(k => delete items[k]);
+    createOrUpdateItem("connectivity", "flight", "✈️ Flight Mode", "Enabled (Simulated)", true);
+    createOrUpdateItem("connectivity", "online", "📶 Online Status", "Offline (Simulated)", true);
+    createOrUpdateItem("connectivity", "network", "📡 Network", "Disconnected (Simulated)", true);
+  }
+
+  // Dark mode toggle with saving to localStorage
+  function toggleDarkMode() {
+    document.body.classList.toggle("dark-mode");
+    localStorage.setItem("theme", document.body.classList.contains("dark-mode") ? "dark" : "light");
+  }
+  function applySavedTheme() {
+    if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark-mode");
+  }
+
+  // Fetch media devices count
+  async function checkMediaDevices() {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return null;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter(d => d.kind === "videoinput").length;
+      const mics = devices.filter(d => d.kind === "audioinput").length;
+      return { cams, mics };
+    } catch {
+      return null;
+    }
+  }
+
+  // Storage estimation
+  async function checkStorageEstimate() {
+    if (navigator.storage && navigator.storage.estimate) {
+      const estimate = await navigator.storage.estimate();
+      if (estimate.quota && estimate.usage) {
+        const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
+        const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
+        return { quotaMB, usageMB };
+      }
+    }
+    return null;
+  }
+
+  // Battery progress bar HTML helper
+  function batteryProgressBar(level, charging) {
+    const color = charging ? "bg-success" : level > 0.2 ? "bg-info" : "bg-danger";
+    const percent = Math.round(level * 100);
+    return `
+      <div class="progress" style="width: 100px;">
+        <div class="progress-bar ${color}" role="progressbar" style="width: ${percent}%;" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100">${percent}%</div>
+      </div>
+    `;
+  }
+
+  // Update all info
+  async function updateAll() {
+    // Clear all
+    [connectivityList, batteryList, deviceInfoList, sensorList, storageList, locationList].forEach(list => list.innerHTML = "");
+    Object.keys(items).forEach(k => delete items[k]);
+
+    // Connectivity
+    createOrUpdateItem("connectivity", "online", "📶 Online Status", navigator.onLine ? "Online" : "Offline", !navigator.onLine);
+    if (connection) {
+      createOrUpdateItem("connectivity", "connectionType", "🌐 Connection Type", connection.effectiveType || "Unknown");
+      createOrUpdateItem("connectivity", "downlink", "📡 Downlink Speed", connection.downlink + " Mbps");
+      createOrUpdateItem("connectivity", "rtt", "📶 RTT (Latency)", connection.rtt + " ms");
+      createOrUpdateItem("connectivity", "saveData", "📴 Save Data Mode", connection.saveData ? "Enabled" : "Disabled");
+    } else {
+      createOrUpdateItem("connectivity", "connectionType", "🌐 Connection Type", "Not Supported");
+    }
+
+    // Battery
+    try {
+      battery = await navigator.getBattery();
+      createOrUpdateItem("battery", "batteryLevel", "🔋 Battery Level", Math.round(battery.level * 100) + "%", false, batteryProgressBar(battery.level, battery.charging));
+      createOrUpdateItem("battery", "charging", "🔌 Charging", battery.charging ? "Yes" : "No");
+      createOrUpdateItem("battery", "chargingTime", "⚡ Charging Time", battery.chargingTime === Infinity ? "N/A" : battery.chargingTime + " sec");
+      createOrUpdateItem("battery", "dischargingTime", "🔋 Discharging Time", battery.dischargingTime === Infinity ? "N/A" : battery.dischargingTime + " sec");
+    } catch {
+      createOrUpdateItem("battery", "batteryLevel", "🔋 Battery", "Not Supported");
+    }
+
+    // Device Info
+    createOrUpdateItem("device", "platform", "🛠 Platform", navigator.platform);
+    createOrUpdateItem("device", "userAgent", "🌐 User Agent", navigator.userAgent);
+    createOrUpdateItem("device", "language", "🔤 Language", navigator.language);
+    createOrUpdateItem("device", "deviceMemory", "🧠 Device Memory", navigator.deviceMemory ? navigator.deviceMemory + " GB" : "Unknown");
+    createOrUpdateItem("device", "cpuCores", "🧮 CPU Cores", navigator.hardwareConcurrency ? navigator.hardwareConcurrency + " Cores" : "Unknown");
+    createOrUpdateItem("device", "dnt", "🚫 Do Not Track", navigator.doNotTrack === "1" ? "Enabled" : "Disabled");
+    createOrUpdateItem("device", "touchSupport", "📱 Touch Support", 'ontouchstart' in window ? "Yes" : "No");
+    createOrUpdateItem("device", "bluetooth", "🟦 Bluetooth API", navigator.bluetooth ? "Supported" : "Not Supported");
+    if (screen.orientation) {
+      createOrUpdateItem("device", "screenOrientation", "📐 Screen Orientation", screen.orientation.type || "Unknown");
+      createOrUpdateItem("device", "screenWidth", "📏 Screen Width", screen.width + " px");
+      createOrUpdateItem("device", "screenHeight", "📐 Screen Height", screen.height + " px");
+      } else {
+      createOrUpdateItem("device", "screenInfo", "📐 Screen Info", "Not Supported");
+      }
+      const darkScheme = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      createOrUpdateItem("device", "colorScheme", "🎨 Prefers Dark Mode", darkScheme ? "Yes" : "No");
+      
+      // Media devices
+      const mediaDevices = await checkMediaDevices();
+      if (mediaDevices) {
+      createOrUpdateItem("device", "cameras", "📷 Cameras Available", mediaDevices.cams);
+      createOrUpdateItem("device", "microphones", "🎤 Microphones Available", mediaDevices.mics);
+      } else {
+      createOrUpdateItem("device", "mediaDevices", "📷/🎤 Media Devices", "Not Supported");
+      }
+      
+      // Storage
+      const storage = await checkStorageEstimate();
+      if (storage) {
+      createOrUpdateItem("storage", "storageQuota", "💾 Storage Quota", storage.quotaMB + " MB");
+      createOrUpdateItem("storage", "storageUsed", "📂 Storage Used", storage.usageMB + " MB");
+      } else {
+      createOrUpdateItem("storage", "storageInfo", "💾 Storage Info", "Not Supported");
+      }
+      
+      // Location & Permissions
+      if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+      const coords = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+      createOrUpdateItem("location", "location", "📍 Location", coords);
+      }, () => {
+      createOrUpdateItem("location", "location", "📍 Location", "Permission Denied", true);
+      });
+      } else {
+      createOrUpdateItem("location", "location", "📍 Location", "Not Supported", true);
+      }
+      createOrUpdateItem("location", "clipboard", "📋 Clipboard Support", navigator.clipboard ? "Yes" : "No");
+      createOrUpdateItem("location", "cookies", "🍪 Cookies Enabled", navigator.cookieEnabled ? "Yes" : "No");
+      }
+      
+      // Sensors & Motion
+      function addOrientationListener() {
+      window.addEventListener("deviceorientation", function (e) {
+      const heading = e.alpha !== null ? `${Math.round(e.alpha)}°` : "Not Supported";
+      createOrUpdateItem("sensor", "compassHeading", "🧭 Compass Heading", heading);
+      });
+      }
+      
+      function addMotionListener() {
+      window.addEventListener("devicemotion", function (e) {
+      if (e.acceleration) {
+      const x = e.acceleration.x?.toFixed(2);
+      const y = e.acceleration.y?.toFixed(2);
+      const z = e.acceleration.z?.toFixed(2);
+      createOrUpdateItem("sensor", "motion", "📳 Motion (X,Y,Z)", `${x}, ${y}, ${z}`);
+      } else {
+      createOrUpdateItem("sensor", "motion", "📳 Motion", "Not Supported");
+      }
+      });
+      }
+      
+      // Real-time event listeners
+      function setupRealTimeListeners() {
+      window.addEventListener("online", () =>
+      createOrUpdateItem("connectivity", "online", "📶 Online Status", "Online", false)
+      );
+      window.addEventListener("offline", () =>
+      createOrUpdateItem("connectivity", "online", "📶 Online Status", "Offline", true)
+      );
+      
+      if (connection) {
+      connection.addEventListener("change", () => {
+      createOrUpdateItem(
+      "connectivity",
+      "connectionType",
+      "🌐 Connection Type",
+      connection.effectiveType || "Unknown"
+      );
+      createOrUpdateItem(
+      "connectivity",
+      "downlink",
+      "📡 Downlink Speed",
+      connection.downlink + " Mbps"
+      );
+      createOrUpdateItem(
+      "connectivity",
+      "rtt",
+      "📶 RTT (Latency)",
+      connection.rtt + " ms"
+      );
+      createOrUpdateItem(
+      "connectivity",
+      "saveData",
+      "📴 Save Data Mode",
+      connection.saveData ? "Enabled" : "Disabled"
+      );
+      });
+      }
+      
+      // Battery event listeners
+      if (battery) {
+      battery.addEventListener("chargingchange", () => {
+      createOrUpdateItem(
+      "battery",
+      "charging",
+      "🔌 Charging",
+      battery.charging ? "Yes" : "No"
+      );
+      });
+      battery.addEventListener("levelchange", () => {
+      createOrUpdateItem(
+      "battery",
+      "batteryLevel",
+      "🔋 Battery Level",
+      Math.round(battery.level * 100) + "%",
+      false,
+      batteryProgressBar(battery.level, battery.charging)
+      );
+      });
+      battery.addEventListener("chargingtimechange", () => {
+      createOrUpdateItem(
+      "battery",
+      "chargingTime",
+      "⚡ Charging Time",
+      battery.chargingTime === Infinity ? "N/A" : battery.chargingTime + " sec"
+      );
+      });
+      battery.addEventListener("dischargingtimechange", () => {
+      createOrUpdateItem(
+      "battery",
+      "dischargingTime",
+      "🔋 Discharging Time",
+      battery.dischargingTime === Infinity ? "N/A" : battery.dischargingTime + " sec"
+      );
+      });
+      }
+      
+      // Geolocation watch for real-time location updates
+      if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(
+      (pos) => {
+      const coords = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+      createOrUpdateItem("location", "location", "📍 Location", coords);
+      },
+      () => {
+      createOrUpdateItem("location", "location", "📍 Location", "Permission Denied", true);
+      }
+      );
+      }
+      }
+      
+      // Initialize theme, data, and listeners
+      applySavedTheme();
+      updateAll();
+      setupRealTimeListeners();
+      addOrientationListener();
+      addMotionListener();
+      setInterval(updateAll, 1000);
+      </script>
+      
+      </body>
+    </html>
